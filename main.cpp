@@ -53,10 +53,18 @@ int ehp = 2;
 std::vector<float> bx, by, bdx, bdy;
 std::vector<int> bulletOwner; // 0 — игрок, 1 — противник
 int pcd = 0, ecd = 0;
-SDL_Rect walls[] = {
-    {150, 0, 20, 100}, {150, 150, 20, 100}, {250, 150, 20, 150},
-    {0, 200, 100, 20}, {300, 200, 100, 20}, {150, 300, 100, 20}
+std::vector<SDL_Rect> walls;
+int tanksWave = 1;
+int enemyMoveTick = 0;
+const SDL_Rect tankArenas[3][6] = {
+    {{150,0,20,100},{150,150,20,100},{250,150,20,150},{0,200,100,20},{300,200,100,20},{150,300,100,20}},
+    {{80,110,20,150},{180,60,20,120},{280,180,20,150},{130,300,140,20},{20,230,70,20},{310,90,70,20}},
+    {{100,80,20,170},{200,180,20,170},{300,80,20,170},{30,280,100,20},{150,80,100,20},{270,280,100,20}}
 };
+void setTankArena(int index) {
+    walls.clear();
+    for (int i=0; i<6; i++) walls.push_back(tankArenas[index%3][i]);
+}
 bool tankBlocked(float x, float y) {
     if (x < 15 || x > 385 || y < 15 || y > 385) return true;
     SDL_Rect body={(int)x-10,(int)y-10,20,20};
@@ -197,9 +205,11 @@ void resetMiner() {
 
 void resetTanks() {
     px_t = 50; py_t = 50; pa_t = 0; php = 3;
+    tanksWave = 1; enemyMoveTick = 0;
+    setTankArena(0);
     ex_t = 350; ey_t = 50; ehp = 2;
     bx.clear(); by.clear(); bdx.clear(); bdy.clear(); bulletOwner.clear();
-    pcd = 0; ecd = 0;
+    pcd = 0; ecd = 35;
 }
 
 void handleMinerCommand(int cmd) {
@@ -374,11 +384,22 @@ void mainLoop() {
                 if (!tankBlocked(nextX,py_t)) px_t=nextX;
                 if (!tankBlocked(px_t,nextY)) py_t=nextY;
 
-                float enemyX=ex_t, enemyY=ey_t;
-                if (enemyX < px_t) enemyX += 1; else if (enemyX > px_t) enemyX -= 1;
-                if (!tankBlocked(enemyX,ey_t)) ex_t=enemyX;
-                if (enemyY < py_t) enemyY += 1; else if (enemyY > py_t) enemyY -= 1;
-                if (!tankBlocked(ex_t,enemyY)) ey_t=enemyY;
+                // Противник двигается к игроку, но проверяет оба направления
+                // и выбирает свободную ось, если прямой путь закрыт стеной.
+                if (++enemyMoveTick >= 2) {
+                    enemyMoveTick = 0;
+                    float dx = px_t - ex_t, dy = py_t - ey_t;
+                    float stepX = dx > 0 ? 1.0f : (dx < 0 ? -1.0f : 0.0f);
+                    float stepY = dy > 0 ? 1.0f : (dy < 0 ? -1.0f : 0.0f);
+                    bool moved = false;
+                    if (fabs(dx) >= fabs(dy) && stepX != 0 && !tankBlocked(ex_t+stepX,ey_t)) {
+                        ex_t += stepX; moved = true;
+                    }
+                    if (!moved && stepY != 0 && !tankBlocked(ex_t,ey_t+stepY)) {
+                        ey_t += stepY; moved = true;
+                    }
+                    if (!moved && stepX != 0 && !tankBlocked(ex_t+stepX,ey_t)) ex_t += stepX;
+                }
 
                 if (pcd > 0) pcd--; if (ecd > 0) ecd--;
                 if (ecd <= 0) {
@@ -395,10 +416,21 @@ void mainLoop() {
                     if (bulletOwner[i] == 0 && ehp > 0 && hypot(bx[i]-ex_t, by[i]-ey_t) < 15) { ehp--; removeBullet = true; }
                     if (removeBullet) { bx.erase(bx.begin()+i); by.erase(by.begin()+i); bdx.erase(bdx.begin()+i); bdy.erase(bdy.begin()+i); bulletOwner.erase(bulletOwner.begin()+i); i--; }
                 }
+                // Три волны: каждая следующая меняет арену и усиливает противника.
+                if (ehp <= 0 && tanksWave < 3) {
+                    tanksWave++;
+                    setTankArena(tanksWave-1);
+                    ex_t = 350; ey_t = 50;
+                    ehp = 2 + tanksWave - 1;
+                    ecd = 45;
+                    bx.clear(); by.clear(); bdx.clear(); bdy.clear(); bulletOwner.clear();
+                }
             }
 
             SDL_SetRenderDrawColor(renderer, 48, 42, 67, 255);
             SDL_Rect hud={15,55,370,30}; SDL_RenderFillRect(renderer,&hud);
+            drawText("WAVE",165,65,2,{255,236,190,255});
+            drawText(std::to_string(tanksWave)+"/3",190,65,2,{126,224,190,255});
             drawText("YOU",25,65,2,{255,236,190,255});
             drawText(std::to_string(php),65,65,2,{126,224,190,255});
             drawText("ENEMY",245,65,2,{255,236,190,255});
@@ -433,13 +465,14 @@ void mainLoop() {
                 if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
-            if (php <= 0 || ehp <= 0) {
+            if (php <= 0 || (ehp <= 0 && tanksWave >= 3)) {
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(renderer, 18,16,35,220);
                 SDL_Rect shade={0,0,W,H}; SDL_RenderFillRect(renderer,&shade);
                 SDL_SetRenderDrawColor(renderer,48,42,72,255);
                 SDL_Rect panel={35,175,330,150}; SDL_RenderFillRect(renderer,&panel);
                 drawText(php<=0 ? "GAME OVER" : "YOU WIN", 105,205,5,{255,236,190,255});
+                drawText(php<=0 ? "TRY AGAIN" : "3 WAVES CLEAR", 112,235,2,{126,224,190,255});
                 bool retry=mouseX>=100 && mouseX<=300 && mouseY>=255 && mouseY<=305;
                 drawBtn(100,255,200,50,retry,clicked&&retry,{63,145,113,255});
                 drawText("RETRY",160,273,3,{255,244,214,255});
