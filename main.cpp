@@ -15,11 +15,35 @@ enum State { MENU, MAZE, TANKS, MINER };
 State current = MENU;
 bool paused = false;
 
-// --- ЛАБИРИНТ ---
-int mx = 1, my = 1;
-bool mazeWon = false;
-const int mazeWalls[3][3] = {{0,1,0},{0,1,0},{0,0,0}};
-bool mazeCanMove(int x, int y) { return x >= 0 && x < 3 && y >= 0 && y < 3 && mazeWalls[y][x] == 0; }
+// --- ЛАБИРИНТ: ТРИ УРОВНЯ 5x5 ---
+// 0 — свободная клетка, 1 — стена. У каждого уровня есть путь от (0,0) к (4,4).
+const int mazeMaps[3][5][5] = {
+    {{0,0,1,0,0},{1,0,1,0,1},{0,0,0,0,1},{0,1,1,0,0},{0,0,0,1,0}},
+    {{0,1,0,0,0},{0,1,0,1,0},{0,0,0,1,0},{1,1,0,0,0},{0,0,0,1,0}},
+    {{0,0,0,1,0},{1,1,0,1,0},{0,0,0,0,0},{0,1,1,1,0},{0,0,0,0,0}}
+};
+int mazeLevel = 0, mx = 0, my = 0, mazeSteps = 0;
+bool mazeWon = false, mazeAllWon = false;
+bool mazeCanMove(int x, int y) {
+    return x >= 0 && x < 5 && y >= 0 && y < 5 && mazeMaps[mazeLevel][y][x] == 0;
+}
+void resetMazeLevel() { mx=0; my=0; mazeSteps=0; mazeWon=false; mazeAllWon=false; }
+void tryMazeMove(int dx, int dy) {
+    if (mazeWon || mazeAllWon) return;
+    int nx=mx+dx, ny=my+dy;
+    if (mazeCanMove(nx,ny)) {
+        mx=nx; my=ny; mazeSteps++;
+        if (mx==4 && my==4) {
+            mazeWon=true;
+            if (mazeLevel==2) mazeAllWon=true;
+        }
+    }
+}
+void nextMazeLevel() {
+    if (mazeLevel < 2) mazeLevel++;
+    else mazeLevel=0;
+    resetMazeLevel();
+}
 
 // --- ТАНКИ ---
 float px_t = 50, py_t = 50, pa_t = 0;
@@ -198,11 +222,10 @@ void mainLoop() {
         if (e.type == SDL_KEYDOWN) {
             if (e.key.keysym.sym == SDLK_ESCAPE && current != MENU) paused = !paused;
             if (!paused && current == MAZE) {
-                if (e.key.keysym.sym == SDLK_w || e.key.keysym.sym == SDLK_UP) { if(mazeCanMove(mx,my-1)) my--; }
-                if (e.key.keysym.sym == SDLK_s || e.key.keysym.sym == SDLK_DOWN) { if(mazeCanMove(mx,my+1)) my++; }
-                if (e.key.keysym.sym == SDLK_a || e.key.keysym.sym == SDLK_LEFT) { if(mazeCanMove(mx-1,my)) mx--; }
-                if (e.key.keysym.sym == SDLK_d || e.key.keysym.sym == SDLK_RIGHT) { if(mazeCanMove(mx+1,my)) mx++; }
-                if (mx==2 && my==2) mazeWon = true;
+                if (e.key.keysym.sym == SDLK_w || e.key.keysym.sym == SDLK_UP) tryMazeMove(0,-1);
+                if (e.key.keysym.sym == SDLK_s || e.key.keysym.sym == SDLK_DOWN) tryMazeMove(0,1);
+                if (e.key.keysym.sym == SDLK_a || e.key.keysym.sym == SDLK_LEFT) tryMazeMove(-1,0);
+                if (e.key.keysym.sym == SDLK_d || e.key.keysym.sym == SDLK_RIGHT) tryMazeMove(1,0);
             }
             if (!paused && current == TANKS && e.key.keysym.sym == SDLK_SPACE && pcd <= 0) {
                 bx.push_back(px_t); by.push_back(py_t);
@@ -262,7 +285,7 @@ void mainLoop() {
         drawText("03  MINER", 105, 394, 5, {255,244,214,255});
         drawText("WASD / ARROWS  -  TOUCH", 92, 468, 2, {170,162,199,255});
         if (clicked) {
-            if (h1) { current = MAZE; mx=0; my=0; mazeWon=false; }
+            if (h1) { current = MAZE; mazeLevel=0; resetMazeLevel(); }
             if (h2) { current = TANKS; resetTanks(); }
             if (h3) { current = MINER; resetMiner(); }
         }
@@ -279,24 +302,29 @@ void mainLoop() {
 
         if (current == MAZE) {
             drawText("MAZE",165,25,4,{48,42,67,255});
-            int cx = 50, cy = 80, cell = 100;
-            SDL_SetRenderDrawColor(renderer, 255, 215, 176, 255);
-            for(int wy=0; wy<3; wy++) for(int wx=0; wx<3; wx++) {
-                if (mazeWalls[wy][wx]) { SDL_SetRenderDrawColor(renderer, 66, 57, 84, 255); SDL_Rect wall = {cx+wx*cell+5, cy+wy*cell+5, cell-10, cell-10}; SDL_RenderFillRect(renderer, &wall); }
+            drawText("LEVEL",28,58,2,{91,82,117,255});
+            drawText(std::to_string(mazeLevel+1)+"/3",83,58,2,{63,145,113,255});
+            drawText("STEPS",285,58,2,{91,82,117,255});
+            drawText(std::to_string(mazeSteps),345,58,2,{199,112,63,255});
+            int cx = 60, cy = 82, cell = 56;
+            for(int wy=0; wy<5; wy++) for(int wx=0; wx<5; wx++) {
+                SDL_Rect tile={cx+wx*cell+2,cy+wy*cell+2,cell-4,cell-4};
+                if (mazeMaps[mazeLevel][wy][wx]) {
+                    SDL_SetRenderDrawColor(renderer,66,57,84,255); SDL_RenderFillRect(renderer,&tile);
+                    SDL_SetRenderDrawColor(renderer,116,91,145,255); SDL_RenderDrawRect(renderer,&tile);
+                } else {
+                    SDL_SetRenderDrawColor(renderer,235,225,205,255); SDL_RenderFillRect(renderer,&tile);
+                    SDL_SetRenderDrawColor(renderer,215,201,177,255); SDL_RenderDrawRect(renderer,&tile);
+                }
             }
-            for(int i=0; i<=3; i++) {
-                SDL_RenderDrawLine(renderer, cx+i*cell, cy, cx+i*cell, cy+300);
-                SDL_RenderDrawLine(renderer, cx, cy+i*cell, cx+300, cy+i*cell);
-            }
-            if (mazeWon) SDL_SetRenderDrawColor(renderer, 46, 139, 46, 255);
-            else SDL_SetRenderDrawColor(renderer, 180, 230, 180, 255);
-            SDL_Rect exitR = {cx+2*cell+10, cy+2*cell+10, cell-20, cell-20}; SDL_RenderFillRect(renderer, &exitR);
-            
-            SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255);
-            SDL_Rect robot = {cx+mx*cell+10, cy+my*cell+10, cell-20, cell-20}; SDL_RenderFillRect(renderer, &robot);
-            if (mazeWon) drawText("EXIT FOUND!",120,390,4,{63,145,113,255});
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100); SDL_Rect eye1 = {cx+mx*cell+20, cy+my*cell+25, 8, 8}, eye2 = {cx+mx*cell+45, cy+my*cell+25, 8, 8};
-            SDL_RenderFillRect(renderer, &eye1); SDL_RenderFillRect(renderer, &eye2); // Глазки робота
+            SDL_SetRenderDrawColor(renderer,63,145,113,255);
+            SDL_Rect exitR={cx+4*cell+10,cy+4*cell+10,cell-20,cell-20}; SDL_RenderFillRect(renderer,&exitR);
+            drawText("E",cx+4*cell+23,cy+4*cell+24,3,{255,244,214,255});
+            SDL_SetRenderDrawColor(renderer,255,154,60,255);
+            SDL_Rect robot={cx+mx*cell+9,cy+my*cell+9,cell-18,cell-18}; SDL_RenderFillRect(renderer,&robot);
+            SDL_SetRenderDrawColor(renderer,48,42,67,255);
+            SDL_Rect eye1={cx+mx*cell+17,cy+my*cell+18,5,5}, eye2={cx+mx*cell+32,cy+my*cell+18,5,5};
+            SDL_RenderFillRect(renderer,&eye1); SDL_RenderFillRect(renderer,&eye2);
 
             // D-Pad
             bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=400 && mouseY<=450);
@@ -311,11 +339,23 @@ void mainLoop() {
             drawBtn(235, 460, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 460, 3);
             
             if (clicked) {
-                if (hu) { if(mazeCanMove(mx,my-1)) my--; }
-                if (hd) { if(mazeCanMove(mx,my+1)) my++; }
-                if (hl) { if(mazeCanMove(mx-1,my)) mx--; }
-                if (hr) { if(mazeCanMove(mx+1,my)) mx++; }
-                if (mx==2 && my==2) mazeWon = true;
+                if (hu) tryMazeMove(0,-1);
+                if (hd) tryMazeMove(0,1);
+                if (hl) tryMazeMove(-1,0);
+                if (hr) tryMazeMove(1,0);
+            }
+            if (mazeWon) {
+                SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(renderer,18,16,35,220);
+                SDL_Rect shade={0,0,W,H}; SDL_RenderFillRect(renderer,&shade);
+                SDL_SetRenderDrawColor(renderer,48,42,72,255);
+                SDL_Rect panel={35,175,330,165}; SDL_RenderFillRect(renderer,&panel);
+                drawText(mazeAllWon ? "ALL CLEAR!" : "LEVEL CLEAR!",75,195,4,{126,224,190,255});
+                drawText(("STEPS "+std::to_string(mazeSteps)).c_str(),145,235,3,{255,236,190,255});
+                bool again=mouseX>=85 && mouseX<=315 && mouseY>=275 && mouseY<=325;
+                drawBtn(85,275,230,50,again,clicked&&again,{63,145,113,255});
+                drawText(mazeAllWon ? "PLAY AGAIN" : "NEXT LEVEL",112,292,3,{255,244,214,255});
+                if(clicked && again) nextMazeLevel();
             }
         }
         else if (current == TANKS) {
