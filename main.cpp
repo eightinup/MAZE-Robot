@@ -275,7 +275,7 @@ void mainLoop() {
                 if (hd) { py_t += 15; pa_t = 1.57; }
                 if (hl) { px_t -= 15; pa_t = 3.14; }
                 if (hr) { px_t += 15; pa_t = 0; }
-                if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); pcd = 20; }
+                if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
         }
         else if (current == MINER) {
