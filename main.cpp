@@ -423,6 +423,7 @@ void mainLoop() {
             bool hb3 = (mouseX>=110 && mouseX<=150 && mouseY>=370 && mouseY<=410);
             bool hb4 = (mouseX>=160 && mouseX<=200 && mouseY>=370 && mouseY<=410);
             bool hbr = (mouseX>=210 && mouseX<=290 && mouseY>=370 && mouseY<=410);
+            bool hreset = (mouseX>=300 && mouseX<=390 && mouseY>=370 && mouseY<=410);
             SDL_Color gray = {150, 150, 150, 255}, green = {60, 180, 60, 255};
 
             drawBtn(10, 370, 40, 40, hb1, clicked&&hb1, gray); drawArrow(0, 350, 2);
@@ -430,17 +431,22 @@ void mainLoop() {
             drawBtn(110, 370, 40, 40, hb3, clicked&&hb3, gray); drawPickaxe(100, 360);
             drawBtn(160, 370, 40, 40, hb4, clicked&&hb4, gray); drawBlockIcon(150, 360);
             drawBtn(210, 370, 80, 40, hbr, clicked&&hbr, green); drawPlayIcon(215, 370);
+            drawBtn(300, 370, 90, 40, hreset, clicked&&hreset, {166,72,79,255});
+            drawText("RESET", 315, 384, 2, {255,244,214,255});
 
-            if (clicked && execIdx == -1) {
+            if (clicked && hreset) resetMiner();
+            else if (clicked && execIdx == -1 && !minerWon) {
                 if (hb1) program.push_back(1);
                 if (hb2) program.push_back(2);
                 if (hb3) program.push_back(3);
                 if (hb4) program.push_back(4);
-                if (hbr && !program.empty()) execIdx = 0;
+                if (hbr && !program.empty()) { execIdx = 0; lastExec = SDL_GetTicks(); }
             }
-            if (execIdx >= 0 && SDL_GetTicks() - lastExec > 400) {
+            if (execIdx >= 0 && execIdx < (int)program.size() && !minerWon && SDL_GetTicks() - lastExec > 400) {
                 handleMinerCommand(program[execIdx]);
-                execIdx++; if (execIdx >= (int)program.size()) execIdx = -1; lastExec = SDL_GetTicks();
+                execIdx++;
+                if (execIdx >= (int)program.size() || minerWon) execIdx = -1;
+                lastExec = SDL_GetTicks();
             }
             if (minerWon) {
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -448,6 +454,10 @@ void mainLoop() {
                 SDL_Rect ov = {0,0,400,500}; SDL_RenderFillRect(renderer, &ov);
                 drawText("DIAMOND FOUND",70,220,4,{126,224,190,255});
                 drawText("WELL DONE",125,260,4,{255,236,190,255});
+                bool retry = mouseX>=100 && mouseX<=300 && mouseY>=310 && mouseY<=360;
+                drawBtn(100,310,200,50,retry,clicked&&retry,{63,145,113,255});
+                drawText("PLAY AGAIN",119,329,3,{255,244,214,255});
+                if (clicked && retry) resetMiner();
             }
         }
     }
