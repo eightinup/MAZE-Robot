@@ -41,6 +41,62 @@ int execIdx = -1;
 Uint32 lastExec = 0;
 bool minerWon = false;
 
+
+// --- ПИКСЕЛЬНЫЙ ШРИФТ 3x5 ---
+uint16_t glyph(char c) {
+    switch (c) {
+        case 'A': return 0x7B6F; case 'B': return 0x6B6B; case 'C': return 0x7927;
+        case 'D': return 0x6B6B; case 'E': return 0x7937; case 'F': return 0x7911;
+        case 'G': return 0x796F; case 'H': return 0x5B6D; case 'I': return 0x7497;
+        case 'J': return 0x124B; case 'K': return 0x5D55; case 'L': return 0x4927;
+        case 'M': return 0x5F6D; case 'N': return 0x5B6D; case 'O': return 0x7B6F;
+        case 'P': return 0x7B39; case 'Q': return 0x7B6F; case 'R': return 0x7B5D;
+        case 'S': return 0x793E; case 'T': return 0x7492; case 'U': return 0x5B6F;
+        case 'V': return 0x5B6A; case 'W': return 0x5B7F; case 'X': return 0x5AAD;
+        case 'Y': return 0x5A92; case 'Z': return 0x72B7;
+        case '0': return 0x7B6F; case '1': return 0x7497; case '2': return 0x73B7;
+        case '3': return 0x73B6; case '4': return 0x5B92; case '5': return 0x79B6;
+        case '6': return 0x79BF; case '7': return 0x7292; case '8': return 0x7BBF;
+        case '9': return 0x7BB6; case '-': return 0x01C0; case ':': return 0x0410;
+        case '.': return 0x0002; case '/': return 0x12A4; case '+': return 0x05D0;
+        default: return 0;
+    }
+}
+void drawText(const std::string& value, int x, int y, int scale, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    int cursor = x;
+    for (char raw : value) {
+        char c = raw >= 'a' && raw <= 'z' ? (char)(raw - 32) : raw;
+        if (c == ' ') { cursor += 4 * scale; continue; }
+        uint16_t bits = glyph(c);
+        for (int row=0; row<5; row++) for (int col=0; col<3; col++) {
+            int bit = 14 - (row*3 + col);
+            if (bits & (1u << bit)) {
+                SDL_Rect px = {cursor + col*scale, y + row*scale, scale, scale};
+                SDL_RenderFillRect(renderer, &px);
+            }
+        }
+        cursor += 4 * scale;
+    }
+}
+void drawPixelRobot(int x, int y) {
+    SDL_SetRenderDrawColor(renderer, 255, 174, 78, 255);
+    SDL_Rect body={x+8,y+8,32,28}; SDL_RenderFillRect(renderer,&body);
+    SDL_Rect earL={x+2,y+15,6,12}, earR={x+40,y+15,6,12};
+    SDL_RenderFillRect(renderer,&earL); SDL_RenderFillRect(renderer,&earR);
+    SDL_SetRenderDrawColor(renderer, 255, 236, 190, 255);
+    SDL_Rect eyeL={x+15,y+16,6,7}, eyeR={x+27,y+16,6,7};
+    SDL_RenderFillRect(renderer,&eyeL); SDL_RenderFillRect(renderer,&eyeR);
+    SDL_SetRenderDrawColor(renderer, 48, 42, 67, 255);
+    SDL_Rect pupilL={x+17,y+18,3,4}, pupilR={x+29,y+18,3,4};
+    SDL_RenderFillRect(renderer,&pupilL); SDL_RenderFillRect(renderer,&pupilR);
+    SDL_Rect mouth={x+19,y+29,10,3}; SDL_RenderFillRect(renderer,&mouth);
+    SDL_SetRenderDrawColor(renderer, 112, 91, 130, 255);
+    SDL_Rect antenna={x+22,y+1,4,7}; SDL_RenderFillRect(renderer,&antenna);
+    SDL_SetRenderDrawColor(renderer, 255, 220, 100, 255);
+    SDL_Rect tip={x+21,y-2,6,4}; SDL_RenderFillRect(renderer,&tip);
+}
+
 // --- ФУНКЦИИ ОТРИСОВКИ UI ---
 void drawBtn(int x, int y, int w, int h, bool hover, bool active, SDL_Color color) {
     SDL_Rect shadow = {x + 3, y + 3, w, h};
@@ -151,21 +207,32 @@ void mainLoop() {
     SDL_RenderClear(renderer);
 
     if (current == MENU) {
-        // Красивое меню
-        SDL_Color c1 = {255, 154, 60, 255}, c2 = {220, 60, 60, 255}, c3 = {60, 180, 60, 255};
-        bool h1 = (mouseY>=50 && mouseY<=150), h2 = (mouseY>=180 && mouseY<=280), h3 = (mouseY>=310 && mouseY<=410);
-        
-        drawBtn(50, 50, 300, 100, h1, clicked && h1, c1);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); SDL_Rect ir1 = {170, 80, 60, 40}; SDL_RenderDrawRect(renderer, &ir1); // Иконка лабиринта (сетка)
-        SDL_RenderDrawLine(renderer, 190, 80, 190, 120); SDL_RenderDrawLine(renderer, 210, 80, 210, 120); SDL_RenderDrawLine(renderer, 170, 100, 230, 100);
+        // Звёздный фон в ограниченной палитре
+        SDL_SetRenderDrawColor(renderer, 23, 21, 43, 255);
+        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 66, 57, 91, 255);
+        for (int i=0; i<18; i++) {
+            int sx=(i*73+19)%390, sy=(i*47+13)%490;
+            SDL_Rect star={sx,sy,2+(i%2),2+(i%2)}; SDL_RenderFillRect(renderer,&star);
+        }
+        SDL_SetRenderDrawColor(renderer, 48, 42, 72, 255);
+        SDL_Rect header={18,18,364,112}; SDL_RenderFillRect(renderer,&header);
+        SDL_SetRenderDrawColor(renderer, 116, 91, 145, 255); SDL_RenderDrawRect(renderer,&header);
+        drawPixelRobot(32,48);
+        drawText("MAZE ROBOT", 100, 48, 5, {255,236,190,255});
+        drawText("PIXEL ARCADE", 103, 82, 3, {126,224,190,255});
+        drawText("SELECT GAME", 132, 145, 3, {207,195,226,255});
 
-        drawBtn(50, 180, 300, 100, h2, clicked && h2, c2);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); SDL_Rect ir2 = {185, 215, 30, 30}; SDL_RenderDrawRect(renderer, &ir2); // Иконка танка
-        SDL_RenderDrawLine(renderer, 200, 215, 200, 195); SDL_RenderDrawLine(renderer, 200, 245, 200, 265);
-
-        drawBtn(50, 310, 300, 100, h3, clicked && h3, c3);
-        drawPickaxe(170, 330); // Иконка копалки
-
+        bool h1 = mouseX>=30 && mouseX<=370 && mouseY>=180 && mouseY<=260;
+        bool h2 = mouseX>=30 && mouseX<=370 && mouseY>=275 && mouseY<=355;
+        bool h3 = mouseX>=30 && mouseX<=370 && mouseY>=370 && mouseY<=450;
+        drawBtn(30,180,340,80,h1,clicked&&h1,{199,112,63,255});
+        drawBtn(30,275,340,80,h2,clicked&&h2,{166,72,79,255});
+        drawBtn(30,370,340,80,h3,clicked&&h3,{63,145,113,255});
+        drawText("01  MAZE", 105, 204, 5, {255,244,214,255});
+        drawText("02  TANKS", 105, 299, 5, {255,244,214,255});
+        drawText("03  MINER", 105, 394, 5, {255,244,214,255});
+        drawText("WASD / ARROWS  -  TOUCH", 92, 468, 2, {170,162,199,255});
         if (clicked) {
             if (h1) { current = MAZE; mx=0; my=0; mazeWon=false; }
             if (h2) { current = TANKS; resetTanks(); }
