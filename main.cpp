@@ -17,7 +17,7 @@ State current = MENU;
 // --- ЛАБИРИНТ ---
 int mx = 1, my = 1;
 bool mazeWon = false;
-const int mazeWalls[3][3] = {{0,1,0},{1,0,0},{0,1,0}};
+const int mazeWalls[3][3] = {{0,1,0},{0,1,0},{0,0,0}};
 bool mazeCanMove(int x, int y) { return x >= 0 && x < 3 && y >= 0 && y < 3 && mazeWalls[y][x] == 0; }
 
 // --- ТАНКИ ---
@@ -211,10 +211,10 @@ void mainLoop() {
             drawBtn(235, 460, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 460, 3);
             
             if (clicked) {
-                if (hu) { if(my>0) my--; }
-                if (hd) { if(my<2) my++; }
-                if (hl) { if(mx>0) mx--; }
-                if (hr) { if(mx<2) mx++; }
+                if (hu) { if(mazeCanMove(mx,my-1)) my--; }
+                if (hd) { if(mazeCanMove(mx,my+1)) my++; }
+                if (hl) { if(mazeCanMove(mx-1,my)) mx--; }
+                if (hr) { if(mazeCanMove(mx+1,my)) mx++; }
                 if (mx==2 && my==2) mazeWon = true;
             }
         }
