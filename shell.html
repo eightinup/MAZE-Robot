@@ -22,6 +22,14 @@
     <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0" aria-label="Игровое поле. Используйте клавиатуру или экранные кнопки."></canvas>
   </main>
   <p class="hint">КЛАВИАТУРА: WASD / СТРЕЛКИ · СЕНСОРНЫЙ ЭКРАН: ИГРОВЫЕ КНОПКИ</p>
+  <script>
+    // Явно привязываем SDL2/Emscripten к видимому canvas.
+    var Module = {
+      canvas: document.getElementById("canvas"),
+      print: function(text) { console.log(text); },
+      printErr: function(text) { console.error(text); }
+    };
+  </script>
   {{{ SCRIPT }}}
 </body>
 </html>
