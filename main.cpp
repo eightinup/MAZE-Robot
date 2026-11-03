@@ -3,6 +3,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <algorithm>
 
 const int W = 400;
 const int H = 500;
@@ -16,6 +17,8 @@ State current = MENU;
 // --- ЛАБИРИНТ ---
 int mx = 1, my = 1;
 bool mazeWon = false;
+const int mazeWalls[3][3] = {{0,1,0},{1,0,0},{0,1,0}};
+bool mazeCanMove(int x, int y) { return x >= 0 && x < 3 && y >= 0 && y < 3 && mazeWalls[y][x] == 0; }
 
 // --- ТАНКИ ---
 float px_t = 50, py_t = 50, pa_t = 0;
@@ -23,6 +26,7 @@ int php = 3;
 float ex_t = 350, ey_t = 50;
 int ehp = 2;
 std::vector<float> bx, by, bdx, bdy;
+std::vector<int> bulletOwner; // 0 — игрок, 1 — противник
 int pcd = 0, ecd = 0;
 SDL_Rect walls[] = {
     {150, 0, 20, 100}, {150, 150, 20, 100}, {250, 150, 20, 150},
@@ -107,7 +111,7 @@ void resetMiner() {
 void resetTanks() {
     px_t = 50; py_t = 50; pa_t = 0; php = 3;
     ex_t = 350; ey_t = 50; ehp = 2;
-    bx.clear(); by.clear(); bdx.clear(); bdy.clear();
+    bx.clear(); by.clear(); bdx.clear(); bdy.clear(); bulletOwner.clear();
     pcd = 0; ecd = 0;
 }
 
@@ -130,15 +134,15 @@ void mainLoop() {
         if (e.type == SDL_MOUSEBUTTONDOWN) { clicked = true; mouseX = e.button.x; mouseY = e.button.y; }
         if (e.type == SDL_KEYDOWN) {
             if (current == MAZE) {
-                if (e.key.keysym.sym == SDLK_w || e.key.keysym.sym == SDLK_UP) { if(my>0) my--; }
-                if (e.key.keysym.sym == SDLK_s || e.key.keysym.sym == SDLK_DOWN) { if(my<2) my++; }
-                if (e.key.keysym.sym == SDLK_a || e.key.keysym.sym == SDLK_LEFT) { if(mx>0) mx--; }
-                if (e.key.keysym.sym == SDLK_d || e.key.keysym.sym == SDLK_RIGHT) { if(mx<2) mx++; }
+                if (e.key.keysym.sym == SDLK_w || e.key.keysym.sym == SDLK_UP) { if(mazeCanMove(mx,my-1)) my--; }
+                if (e.key.keysym.sym == SDLK_s || e.key.keysym.sym == SDLK_DOWN) { if(mazeCanMove(mx,my+1)) my++; }
+                if (e.key.keysym.sym == SDLK_a || e.key.keysym.sym == SDLK_LEFT) { if(mazeCanMove(mx-1,my)) mx--; }
+                if (e.key.keysym.sym == SDLK_d || e.key.keysym.sym == SDLK_RIGHT) { if(mazeCanMove(mx+1,my)) mx++; }
                 if (mx==2 && my==2) mazeWon = true;
             }
             if (current == TANKS && e.key.keysym.sym == SDLK_SPACE && pcd <= 0) {
                 bx.push_back(px_t); by.push_back(py_t);
-                bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); pcd = 20;
+                bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20;
             }
         }
     }
@@ -163,7 +167,7 @@ void mainLoop() {
         drawPickaxe(170, 330); // Иконка копалки
 
         if (clicked) {
-            if (h1) { current = MAZE; mx=1; my=1; mazeWon=false; }
+            if (h1) { current = MAZE; mx=0; my=0; mazeWon=false; }
             if (h2) { current = TANKS; resetTanks(); }
             if (h3) { current = MINER; resetMiner(); }
         }
@@ -178,6 +182,9 @@ void mainLoop() {
         if (current == MAZE) {
             int cx = 50, cy = 80, cell = 100;
             SDL_SetRenderDrawColor(renderer, 255, 215, 176, 255);
+            for(int wy=0; wy<3; wy++) for(int wx=0; wx<3; wx++) {
+                if (mazeWalls[wy][wx]) { SDL_SetRenderDrawColor(renderer, 66, 57, 84, 255); SDL_Rect wall = {cx+wx*cell+5, cy+wy*cell+5, cell-10, cell-10}; SDL_RenderFillRect(renderer, &wall); }
+            }
             for(int i=0; i<=3; i++) {
                 SDL_RenderDrawLine(renderer, cx+i*cell, cy, cx+i*cell, cy+300);
                 SDL_RenderDrawLine(renderer, cx, cy+i*cell, cx+300, cy+i*cell);
@@ -226,14 +233,17 @@ void mainLoop() {
                 if (pcd > 0) pcd--; if (ecd > 0) ecd--;
                 if (ecd <= 0) {
                     float ang = atan2(py_t - ey_t, px_t - ex_t);
-                    bx.push_back(ex_t); by.push_back(ey_t); bdx.push_back(cos(ang)*4); bdy.push_back(sin(ang)*4); ecd = 60;
+                    bx.push_back(ex_t); by.push_back(ey_t); bdx.push_back(cos(ang)*4); bdy.push_back(sin(ang)*4); bulletOwner.push_back(1); ecd = 60;
                 }
 
                 for(int i=0; i<(int)bx.size(); i++) {
                     bx[i] += bdx[i]; by[i] += bdy[i];
-                    if (bx[i]<0||bx[i]>400||by[i]<0||by[i]>400) { bx.erase(bx.begin()+i); by.erase(by.begin()+i); bdx.erase(bdx.begin()+i); bdy.erase(bdy.begin()+i); i--; continue; }
-                    if (hypot(bx[i]-px_t, by[i]-py_t) < 15) { php--; bx.erase(bx.begin()+i); by.erase(by.begin()+i); bdx.erase(bdx.begin()+i); bdy.erase(bdy.begin()+i); i--; }
-                    else if (hypot(bx[i]-ex_t, by[i]-ey_t) < 15) { ehp--; bx.erase(bx.begin()+i); by.erase(by.begin()+i); bdx.erase(bdx.begin()+i); bdy.erase(bdy.begin()+i); i--; }
+                    bool removeBullet = bx[i]<0 || bx[i]>400 || by[i]<0 || by[i]>400;
+                    SDL_Rect shot = {(int)bx[i]-2,(int)by[i]-2,4,4};
+                    for (auto &wall : walls) if (SDL_HasIntersection(&shot,&wall)) removeBullet = true;
+                    if (bulletOwner[i] == 1 && hypot(bx[i]-px_t, by[i]-py_t) < 15) { php--; removeBullet = true; }
+                    if (bulletOwner[i] == 0 && ehp > 0 && hypot(bx[i]-ex_t, by[i]-ey_t) < 15) { ehp--; removeBullet = true; }
+                    if (removeBullet) { bx.erase(bx.begin()+i); by.erase(by.begin()+i); bdx.erase(bdx.begin()+i); bdy.erase(bdy.begin()+i); bulletOwner.erase(bulletOwner.begin()+i); i--; }
                 }
             }
 
@@ -316,7 +326,7 @@ void mainLoop() {
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(W, H, 0, &window, &renderer);
-    SDL_SetWindowTitle(window, "C++ Game Pack");
+    SDL_SetWindowTitle(window, "MAZE Robot - Pixel Arcade");
     resetMiner(); resetTanks();
     emscripten_set_main_loop(mainLoop, 0, 1);
     return 0;
