@@ -1,0 +1,25 @@
+name: Validate WebAssembly build
+
+on:
+  push:
+    branches: [ feature/pixel-art-rebuild ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.70'
+      - name: Compile
+        run: |
+          mkdir -p public
+          emcc -v
+          emcc main.cpp -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 --shell-file shell.html -o public/index.html
+      - name: Verify output
+        run: test -s public/index.html && test -s public/index.wasm
