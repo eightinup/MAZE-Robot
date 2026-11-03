@@ -13,6 +13,7 @@ SDL_Renderer* renderer = nullptr;
 
 enum State { MENU, MAZE, TANKS, MINER };
 State current = MENU;
+bool paused = false;
 
 // --- ЛАБИРИНТ ---
 int mx = 1, my = 1;
@@ -189,14 +190,15 @@ void mainLoop() {
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_MOUSEBUTTONDOWN) { clicked = true; mouseX = e.button.x; mouseY = e.button.y; }
         if (e.type == SDL_KEYDOWN) {
-            if (current == MAZE) {
+            if (e.key.keysym.sym == SDLK_ESCAPE && current != MENU) paused = !paused;
+            if (!paused && current == MAZE) {
                 if (e.key.keysym.sym == SDLK_w || e.key.keysym.sym == SDLK_UP) { if(mazeCanMove(mx,my-1)) my--; }
                 if (e.key.keysym.sym == SDLK_s || e.key.keysym.sym == SDLK_DOWN) { if(mazeCanMove(mx,my+1)) my++; }
                 if (e.key.keysym.sym == SDLK_a || e.key.keysym.sym == SDLK_LEFT) { if(mazeCanMove(mx-1,my)) mx--; }
                 if (e.key.keysym.sym == SDLK_d || e.key.keysym.sym == SDLK_RIGHT) { if(mazeCanMove(mx+1,my)) mx++; }
                 if (mx==2 && my==2) mazeWon = true;
             }
-            if (current == TANKS && e.key.keysym.sym == SDLK_SPACE && pcd <= 0) {
+            if (!paused && current == TANKS && e.key.keysym.sym == SDLK_SPACE && pcd <= 0) {
                 bx.push_back(px_t); by.push_back(py_t);
                 bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20;
             }
@@ -205,6 +207,26 @@ void mainLoop() {
 
     SDL_SetRenderDrawColor(renderer, 250, 245, 235, 255); // Светлый фон
     SDL_RenderClear(renderer);
+
+    if (paused && current != MENU) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 18, 16, 35, 225);
+        SDL_Rect shade={0,0,W,H}; SDL_RenderFillRect(renderer,&shade);
+        SDL_SetRenderDrawColor(renderer, 48, 42, 72, 255);
+        SDL_Rect panel={38,155,324,190}; SDL_RenderFillRect(renderer,&panel);
+        SDL_SetRenderDrawColor(renderer, 126, 224, 190, 255); SDL_RenderDrawRect(renderer,&panel);
+        bool resume = mouseX>=70 && mouseX<=330 && mouseY>=235 && mouseY<=280;
+        bool toMenu = mouseX>=70 && mouseX<=330 && mouseY>=295 && mouseY<=335;
+        drawBtn(70,235,260,45,resume,clicked&&resume,{63,145,113,255});
+        drawBtn(70,295,260,40,toMenu,clicked&&toMenu,{166,72,79,255});
+        drawText("PAUSED", 146, 185, 6, {255,236,190,255});
+        drawText("RESUME", 158, 251, 3, {255,244,214,255});
+        drawText("MAIN MENU", 143, 307, 3, {255,244,214,255});
+        if (clicked && resume) paused=false;
+        if (clicked && toMenu) { paused=false; current=MENU; }
+        SDL_RenderPresent(renderer);
+        return;
+    }
 
     if (current == MENU) {
         // Звёздный фон в ограниченной палитре
@@ -239,14 +261,18 @@ void mainLoop() {
             if (h3) { current = MINER; resetMiner(); }
         }
     } else {
-        // Кнопка "Назад" (стрелочка)
-        bool hBack = (mouseX>=10 && mouseX<=60 && mouseY>=10 && mouseY<=50);
-        drawBtn(10, 10, 50, 40, hBack, clicked && hBack, {150, 150, 150, 255});
-        drawArrow(5, 0, 2); // Стрелка влево
-
-        if (clicked && hBack) current = MENU;
+        // Общая панель навигации
+        bool hBack = mouseX>=10 && mouseX<=60 && mouseY>=10 && mouseY<=50;
+        bool hPause = mouseX>=340 && mouseX<=390 && mouseY>=10 && mouseY<=50;
+        drawBtn(10,10,50,40,hBack,clicked&&hBack,{91,82,117,255});
+        drawArrow(5,0,2);
+        drawBtn(340,10,50,40,hPause,clicked&&hPause,{91,82,117,255});
+        drawText("II",355,22,4,{255,244,214,255});
+        if (clicked && hBack) { current=MENU; paused=false; }
+        if (clicked && hPause) paused=true;
 
         if (current == MAZE) {
+            drawText("MAZE",165,25,4,{48,42,67,255});
             int cx = 50, cy = 80, cell = 100;
             SDL_SetRenderDrawColor(renderer, 255, 215, 176, 255);
             for(int wy=0; wy<3; wy++) for(int wx=0; wx<3; wx++) {
@@ -286,6 +312,7 @@ void mainLoop() {
             }
         }
         else if (current == TANKS) {
+            drawText("TANKS",165,25,4,{48,42,67,255});
             if (php > 0 && ehp > 0) {
                 if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_W]) { py_t -= 2; pa_t = -1.57; }
                 if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_S]) { py_t += 2; pa_t = 1.57; }
@@ -346,6 +373,7 @@ void mainLoop() {
             }
         }
         else if (current == MINER) {
+            drawText("MINER",165,25,4,{48,42,67,255});
             int cell = 40;
             for(int i=0; i<8; i++) for(int j=0; j<10; j++) {
                 if (grid[i][j] == 1) { SDL_SetRenderDrawColor(renderer, 180, 130, 80, 255); SDL_Rect r = {j*cell, i*cell+40, cell, cell}; SDL_RenderFillRect(renderer, &r); }
