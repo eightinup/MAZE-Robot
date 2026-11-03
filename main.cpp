@@ -131,7 +131,11 @@ void mainLoop() {
                 SDL_RenderDrawLine(renderer, cx+i*cell, cy, cx+i*cell, cy+300);
                 SDL_RenderDrawLine(renderer, cx, cy+i*cell, cx+300, cy+i*cell);
             }
-            SDL_SetRenderDrawColor(renderer, mazeWon ? 46 : 212, mazeWon ? 139 : 245, mazeWon ? 46 : 212, 255);
+            
+            // Исправленный цвет выхода
+            if (mazeWon) SDL_SetRenderDrawColor(renderer, 46, 139, 46, 255);
+            else SDL_SetRenderDrawColor(renderer, 212, 245, 212, 255);
+            
             SDL_Rect exitR = {cx+2*cell+10, cy+2*cell+10, cell-20, cell-20}; SDL_RenderFillRect(renderer, &exitR);
             SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255);
             SDL_Rect robot = {cx+mx*cell+10, cy+my*cell+10, cell-20, cell-20}; SDL_RenderFillRect(renderer, &robot);
@@ -189,15 +193,18 @@ void mainLoop() {
             // Отрисовка танков
             SDL_SetRenderDrawColor(renderer, 200, 150, 100, 255);
             for(auto& w : walls) SDL_RenderFillRect(renderer, &w);
+            
+            // ДОБАВЛЕНЫ (int) ДЛЯ КОМПИЛЯТОРА
             SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255);
-            SDL_Rect p = {px_t-10, py_t-10, 20, 20}; SDL_RenderFillRect(renderer, &p);
+            SDL_Rect p = {(int)px_t-10, (int)py_t-10, 20, 20}; SDL_RenderFillRect(renderer, &p);
             if (ehp > 0) {
                 SDL_SetRenderDrawColor(renderer, 220, 60, 60, 255);
-                SDL_Rect en = {ex_t-10, ey_t-10, 20, 20}; SDL_RenderFillRect(renderer, &en);
+                SDL_Rect en = {(int)ex_t-10, (int)ey_t-10, 20, 20}; SDL_RenderFillRect(renderer, &en);
             }
+            
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
             for(int i=0; i<(int)bx.size(); i++) {
-                SDL_Rect b = {bx[i]-3, by[i]-3, 6, 6}; SDL_RenderFillRect(renderer, &b);
+                SDL_Rect b = {(int)bx[i]-3, (int)by[i]-3, 6, 6}; SDL_RenderFillRect(renderer, &b);
             }
 
             // Управление танком (D-Pad и Огонь)
