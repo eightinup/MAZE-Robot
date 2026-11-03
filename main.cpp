@@ -33,6 +33,12 @@ SDL_Rect walls[] = {
     {150, 0, 20, 100}, {150, 150, 20, 100}, {250, 150, 20, 150},
     {0, 200, 100, 20}, {300, 200, 100, 20}, {150, 300, 100, 20}
 };
+bool tankBlocked(float x, float y) {
+    if (x < 15 || x > 385 || y < 15 || y > 385) return true;
+    SDL_Rect body={(int)x-10,(int)y-10,20,20};
+    for (auto &wall : walls) if (SDL_HasIntersection(&body,&wall)) return true;
+    return false;
+}
 
 // --- ШАХТЁР ---
 int grid[8][10];
@@ -314,15 +320,21 @@ void mainLoop() {
         else if (current == TANKS) {
             drawText("TANKS",165,25,4,{48,42,67,255});
             if (php > 0 && ehp > 0) {
-                if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_W]) { py_t -= 2; pa_t = -1.57; }
-                if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_S]) { py_t += 2; pa_t = 1.57; }
-                if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_A]) { px_t -= 2; pa_t = 3.14; }
-                if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_D]) { px_t += 2; pa_t = 0; }
-                if (px_t < 15) px_t = 15; if (px_t > 385) px_t = 385;
-                if (py_t < 15) py_t = 15; if (py_t > 385) py_t = 385;
+                const Uint8* keys = SDL_GetKeyboardState(NULL);
+                float nextX=px_t, nextY=py_t;
+                if (keys[SDL_SCANCODE_W]) { nextY-=2; pa_t=-1.57f; }
+                if (keys[SDL_SCANCODE_S]) { nextY+=2; pa_t=1.57f; }
+                if (keys[SDL_SCANCODE_A]) { nextX-=2; pa_t=3.14f; }
+                if (keys[SDL_SCANCODE_D]) { nextX+=2; pa_t=0.0f; }
+                if (!tankBlocked(nextX,px_t==nextX?py_t:py_t)) { /* axis checks below keep movement responsive */ }
+                if (!tankBlocked(nextX,py_t)) px_t=nextX;
+                if (!tankBlocked(px_t,nextY)) py_t=nextY;
 
-                if (ex_t < px_t) ex_t += 1; else ex_t -= 1;
-                if (ey_t < py_t) ey_t += 1; else ey_t -= 1;
+                float enemyX=ex_t, enemyY=ey_t;
+                if (enemyX < px_t) enemyX += 1; else if (enemyX > px_t) enemyX -= 1;
+                if (!tankBlocked(enemyX,ey_t)) ex_t=enemyX;
+                if (enemyY < py_t) enemyY += 1; else if (enemyY > py_t) enemyY -= 1;
+                if (!tankBlocked(ex_t,enemyY)) ey_t=enemyY;
 
                 if (pcd > 0) pcd--; if (ecd > 0) ecd--;
                 if (ecd <= 0) {
@@ -341,6 +353,12 @@ void mainLoop() {
                 }
             }
 
+            SDL_SetRenderDrawColor(renderer, 48, 42, 67, 255);
+            SDL_Rect hud={15,55,370,30}; SDL_RenderFillRect(renderer,&hud);
+            drawText("YOU",25,65,2,{255,236,190,255});
+            drawText(std::to_string(php),65,65,2,{126,224,190,255});
+            drawText("ENEMY",245,65,2,{255,236,190,255});
+            drawText(std::to_string(ehp),335,65,2,{255,145,145,255});
             SDL_SetRenderDrawColor(renderer, 200, 150, 100, 255);
             for(auto& w : walls) SDL_RenderFillRect(renderer, &w);
             
@@ -365,10 +383,10 @@ void mainLoop() {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); SDL_Rect fireIcon = {325, 435, 30, 30}; SDL_RenderDrawRect(renderer, &fireIcon); // Иконка выстрела
 
             if (clicked && php > 0) {
-                if (hu) { py_t -= 15; pa_t = -1.57; }
-                if (hd) { py_t += 15; pa_t = 1.57; }
-                if (hl) { px_t -= 15; pa_t = 3.14; }
-                if (hr) { px_t += 15; pa_t = 0; }
+                if (hu && !tankBlocked(px_t,py_t-15)) { py_t -= 15; pa_t = -1.57; }
+                if (hd && !tankBlocked(px_t,py_t+15)) { py_t += 15; pa_t = 1.57; }
+                if (hl && !tankBlocked(px_t-15,py_t)) { px_t -= 15; pa_t = 3.14; }
+                if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
         }
