@@ -294,6 +294,7 @@ void mainLoop() {
             
             SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255);
             SDL_Rect robot = {cx+mx*cell+10, cy+my*cell+10, cell-20, cell-20}; SDL_RenderFillRect(renderer, &robot);
+            if (mazeWon) drawText("EXIT FOUND!",120,390,4,{63,145,113,255});
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100); SDL_Rect eye1 = {cx+mx*cell+20, cy+my*cell+25, 8, 8}, eye2 = {cx+mx*cell+45, cy+my*cell+25, 8, 8};
             SDL_RenderFillRect(renderer, &eye1); SDL_RenderFillRect(renderer, &eye2); // Глазки робота
 
@@ -326,7 +327,6 @@ void mainLoop() {
                 if (keys[SDL_SCANCODE_S]) { nextY+=2; pa_t=1.57f; }
                 if (keys[SDL_SCANCODE_A]) { nextX-=2; pa_t=3.14f; }
                 if (keys[SDL_SCANCODE_D]) { nextX+=2; pa_t=0.0f; }
-                if (!tankBlocked(nextX,px_t==nextX?py_t:py_t)) { /* axis checks below keep movement responsive */ }
                 if (!tankBlocked(nextX,py_t)) px_t=nextX;
                 if (!tankBlocked(px_t,nextY)) py_t=nextY;
 
@@ -389,6 +389,18 @@ void mainLoop() {
                 if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
+            if (php <= 0 || ehp <= 0) {
+                SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(renderer, 18,16,35,220);
+                SDL_Rect shade={0,0,W,H}; SDL_RenderFillRect(renderer,&shade);
+                SDL_SetRenderDrawColor(renderer,48,42,72,255);
+                SDL_Rect panel={35,175,330,150}; SDL_RenderFillRect(renderer,&panel);
+                drawText(php<=0 ? "GAME OVER" : "YOU WIN", 105,205,5,{255,236,190,255});
+                bool retry=mouseX>=100 && mouseX<=300 && mouseY>=255 && mouseY<=305;
+                drawBtn(100,255,200,50,retry,clicked&&retry,{63,145,113,255});
+                drawText("RETRY",160,273,3,{255,244,214,255});
+                if(clicked && retry) resetTanks();
+            }
         }
         else if (current == MINER) {
             drawText("MINER",165,25,4,{48,42,67,255});
@@ -430,7 +442,13 @@ void mainLoop() {
                 handleMinerCommand(program[execIdx]);
                 execIdx++; if (execIdx >= (int)program.size()) execIdx = -1; lastExec = SDL_GetTicks();
             }
-            if (minerWon) { SDL_SetRenderDrawColor(renderer, 0, 200, 100, 100); SDL_Rect ov = {0,0,400,500}; SDL_RenderFillRect(renderer, &ov); }
+            if (minerWon) {
+                SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(renderer, 18,16,35,210);
+                SDL_Rect ov = {0,0,400,500}; SDL_RenderFillRect(renderer, &ov);
+                drawText("DIAMOND FOUND",70,220,4,{126,224,190,255});
+                drawText("WELL DONE",125,260,4,{255,236,190,255});
+            }
         }
     }
     SDL_RenderPresent(renderer);
