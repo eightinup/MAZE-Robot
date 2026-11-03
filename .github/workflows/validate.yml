@@ -1,0 +1,44 @@
+name: Validate and publish preview
+
+on:
+  push:
+    branches: [ feature/pixel-art-rebuild ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.70'
+      - name: Compile
+        run: |
+          mkdir -p public
+          emcc -v
+          emcc main.cpp -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 --shell-file shell.html -o public/index.html
+      - name: Verify output
+        run: test -s public/index.html && test -s public/index.wasm
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maze-robot-preview
+          path: public/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish isolated preview branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/pixel-art-rebuild'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: preview-site
+          publish_dir: ./public
+          force_orphan: true
+          enable_jekyll: false
