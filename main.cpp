@@ -386,7 +386,8 @@ void mainLoop() {
 
                 // Противник двигается к игроку, но проверяет оба направления
                 // и выбирает свободную ось, если прямой путь закрыт стеной.
-                if (++enemyMoveTick >= 2) {
+                int enemyMoveInterval = tanksWave == 1 ? 2 : 1;
+                if (++enemyMoveTick >= enemyMoveInterval) {
                     enemyMoveTick = 0;
                     float dx = px_t - ex_t, dy = py_t - ey_t;
                     float stepX = dx > 0 ? 1.0f : (dx < 0 ? -1.0f : 0.0f);
@@ -440,8 +441,11 @@ void mainLoop() {
             
             SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255); SDL_Rect p = {(int)px_t-10, (int)py_t-10, 20, 20}; SDL_RenderFillRect(renderer, &p);
             if (ehp > 0) { SDL_SetRenderDrawColor(renderer, 220, 60, 60, 255); SDL_Rect en = {(int)ex_t-10, (int)ey_t-10, 20, 20}; SDL_RenderFillRect(renderer, &en); }
-            SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
-            for(int i=0; i<(int)bx.size(); i++) { SDL_Rect b = {(int)bx[i]-3, (int)by[i]-3, 6, 6}; SDL_RenderFillRect(renderer, &b); }
+            for(int i=0; i<(int)bx.size(); i++) {
+                if (bulletOwner[i] == 0) SDL_SetRenderDrawColor(renderer, 255, 220, 100, 255);
+                else SDL_SetRenderDrawColor(renderer, 255, 70, 70, 255);
+                SDL_Rect b = {(int)bx[i]-3, (int)by[i]-3, 6, 6}; SDL_RenderFillRect(renderer, &b);
+            }
 
             // D-Pad и Огонь
             bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=390 && mouseY<=440);
