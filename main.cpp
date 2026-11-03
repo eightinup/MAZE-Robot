@@ -306,6 +306,10 @@ void mainLoop() {
             drawText(std::to_string(mazeLevel+1)+"/3",83,58,2,{63,145,113,255});
             drawText("STEPS",285,58,2,{91,82,117,255});
             drawText(std::to_string(mazeSteps),345,58,2,{199,112,63,255});
+            bool mazeResetHit=mouseX>=175 && mouseX<=235 && mouseY>=48 && mouseY<=76;
+            drawBtn(175,48,60,28,mazeResetHit,clicked&&mazeResetHit,{166,72,79,255});
+            drawText("RST",190,56,2,{255,244,214,255});
+            if(clicked && mazeResetHit) resetMazeLevel();
             int cx = 60, cy = 82, cell = 56;
             for(int wy=0; wy<5; wy++) for(int wx=0; wx<5; wx++) {
                 SDL_Rect tile={cx+wx*cell+2,cy+wy*cell+2,cell-4,cell-4};
@@ -327,16 +331,16 @@ void mainLoop() {
             SDL_RenderFillRect(renderer,&eye1); SDL_RenderFillRect(renderer,&eye2);
 
             // D-Pad
-            bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=400 && mouseY<=450);
-            bool hd = (mouseX>=175 && mouseX<=225 && mouseY>=460 && mouseY<=510);
-            bool hl = (mouseX>=115 && mouseX<=165 && mouseY>=460 && mouseY<=510);
-            bool hr = (mouseX>=235 && mouseX<=285 && mouseY>=460 && mouseY<=510);
+            bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=390 && mouseY<=440);
+            bool hd = (mouseX>=175 && mouseX<=225 && mouseY>=450 && mouseY<=500);
+            bool hl = (mouseX>=115 && mouseX<=165 && mouseY>=450 && mouseY<=500);
+            bool hr = (mouseX>=235 && mouseX<=285 && mouseY>=450 && mouseY<=500);
             SDL_Color gray = {150, 150, 150, 255};
             
-            drawBtn(175, 400, 50, 50, hu, clicked&&hu, gray); drawArrow(175, 400, 0);
-            drawBtn(175, 460, 50, 50, hd, clicked&&hd, gray); drawArrow(175, 460, 1);
-            drawBtn(115, 460, 50, 50, hl, clicked&&hl, gray); drawArrow(115, 460, 2);
-            drawBtn(235, 460, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 460, 3);
+            drawBtn(175, 390, 50, 50, hu, clicked&&hu, gray); drawArrow(175, 390, 0);
+            drawBtn(175, 450, 50, 50, hd, clicked&&hd, gray); drawArrow(175, 450, 1);
+            drawBtn(115, 450, 50, 50, hl, clicked&&hl, gray); drawArrow(115, 450, 2);
+            drawBtn(235, 450, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 450, 3);
             
             if (clicked) {
                 if (hu) tryMazeMove(0,-1);
@@ -408,17 +412,17 @@ void mainLoop() {
             for(int i=0; i<(int)bx.size(); i++) { SDL_Rect b = {(int)bx[i]-3, (int)by[i]-3, 6, 6}; SDL_RenderFillRect(renderer, &b); }
 
             // D-Pad и Огонь
-            bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=400 && mouseY<=450);
-            bool hd = (mouseX>=175 && mouseX<=225 && mouseY>=460 && mouseY<=510);
-            bool hl = (mouseX>=115 && mouseX<=165 && mouseY>=460 && mouseY<=510);
-            bool hr = (mouseX>=235 && mouseX<=285 && mouseY>=460 && mouseY<=510);
+            bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=390 && mouseY<=440);
+            bool hd = (mouseX>=175 && mouseX<=225 && mouseY>=450 && mouseY<=500);
+            bool hl = (mouseX>=115 && mouseX<=165 && mouseY>=450 && mouseY<=500);
+            bool hr = (mouseX>=235 && mouseX<=285 && mouseY>=450 && mouseY<=500);
             bool hf = (mouseX>=300 && mouseX<=380 && mouseY>=420 && mouseY<=480);
             SDL_Color gray = {150, 150, 150, 255}, red = {220, 60, 60, 255};
 
-            drawBtn(175, 400, 50, 50, hu, clicked&&hu, gray); drawArrow(175, 400, 0);
-            drawBtn(175, 460, 50, 50, hd, clicked&&hd, gray); drawArrow(175, 460, 1);
-            drawBtn(115, 460, 50, 50, hl, clicked&&hl, gray); drawArrow(115, 460, 2);
-            drawBtn(235, 460, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 460, 3);
+            drawBtn(175, 390, 50, 50, hu, clicked&&hu, gray); drawArrow(175, 390, 0);
+            drawBtn(175, 450, 50, 50, hd, clicked&&hd, gray); drawArrow(175, 450, 1);
+            drawBtn(115, 450, 50, 50, hl, clicked&&hl, gray); drawArrow(115, 450, 2);
+            drawBtn(235, 450, 50, 50, hr, clicked&&hr, gray); drawArrow(235, 450, 3);
             drawBtn(300, 420, 80, 60, hf, clicked&&hf, red);
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); SDL_Rect fireIcon = {325, 435, 30, 30}; SDL_RenderDrawRect(renderer, &fireIcon); // Иконка выстрела
 
