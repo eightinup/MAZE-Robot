@@ -24,8 +24,9 @@ jobs:
 
       - name: Compile to WebAssembly
         run: |
+          emcc -v
           mkdir -p public
-          emcc main.cpp -s USE_SDL=2 -o public/index.html
+          emcc main.cpp -s USE_SDL=2 --shell-file shell.html -o public/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
