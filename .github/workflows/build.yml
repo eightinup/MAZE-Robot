@@ -35,7 +35,7 @@ jobs:
       - name: Verify browser build
         run: |
           test -s public/index.html
-          test -s public/index.wasm
+          test -s public/index.wasm\n          cp manifest.webmanifest sw.js icon.svg public/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
