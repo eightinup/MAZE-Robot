@@ -122,23 +122,31 @@ Uint32 lastExec = 0;
 bool minerWon = false;
 
 
-// --- ПИКСЕЛЬНЫЙ ШРИФТ 3x5 ---
-uint16_t glyph(char c) {
+// --- ЧИТАЕМЫЙ ПИКСЕЛЬНЫЙ ШРИФТ 4x6 ---
+// У букв разные силуэты: B/D, I/1 и O/0 легко различаются.
+uint32_t glyph(char c) {
     switch (c) {
-        case 'A': return 0x7B6F; case 'B': return 0x6B6B; case 'C': return 0x7927;
-        case 'D': return 0x6B6B; case 'E': return 0x7937; case 'F': return 0x7911;
-        case 'G': return 0x796F; case 'H': return 0x5B6D; case 'I': return 0x7497;
-        case 'J': return 0x124B; case 'K': return 0x5D55; case 'L': return 0x4927;
-        case 'M': return 0x5F6D; case 'N': return 0x5B6D; case 'O': return 0x7B6F;
-        case 'P': return 0x7B39; case 'Q': return 0x7B6F; case 'R': return 0x7B5D;
-        case 'S': return 0x793E; case 'T': return 0x7492; case 'U': return 0x5B6F;
-        case 'V': return 0x5B6A; case 'W': return 0x5B7F; case 'X': return 0x5AAD;
-        case 'Y': return 0x5A92; case 'Z': return 0x72B7;
-        case '0': return 0x7B6F; case '1': return 0x7497; case '2': return 0x73B7;
-        case '3': return 0x73B6; case '4': return 0x5B92; case '5': return 0x79B6;
-        case '6': return 0x79BF; case '7': return 0x7292; case '8': return 0x7BBF;
-        case '9': return 0x7BB6; case '-': return 0x01C0; case ':': return 0x0410;
-        case '.': return 0x0002; case '/': return 0x12A4; case '+': return 0x05D0;
+        case 'A': return 0x699F99; case 'B': return 0xE99E9E;
+        case 'C': return 0x798887; case 'D': return 0xE9999E;
+        case 'E': return 0xF89E8F; case 'F': return 0xF89E88;
+        case 'G': return 0x798B97; case 'H': return 0x99F999;
+        case 'I': return 0xF6606F; case 'J': return 0x333393;
+        case 'K': return 0x9ACAA9; case 'L': return 0x88888F;
+        case 'M': return 0x9FF999; case 'N': return 0x9DBB99;
+        case 'O': return 0x699996; case 'P': return 0xE99E88;
+        case 'Q': return 0x6999B7; case 'R': return 0xE99EA9;
+        case 'S': return 0x79861E; case 'T': return 0xF66060;
+        case 'U': return 0x999996; case 'V': return 0x999966;
+        case 'W': return 0x999FF9; case 'X': return 0x996699;
+        case 'Y': return 0x996660; case 'Z': return 0xF1248F;
+        case '0': return 0x699996; case '1': return 0x26222F;
+        case '2': return 0xE1248F; case '3': return 0xE1241E;
+        case '4': return 0x99F111; case '5': return 0xF89E1E;
+        case '6': return 0x798F96; case '7': return 0xF12444;
+        case '8': return 0x699696; case '9': return 0x699E1E;
+        case '-': return 0x000F00; case ':': return 0x060060;
+        case '.': return 0x000006; case '/': return 0x112244;
+        case '+': return 0x026620; case '!': return 0x666006;
         default: return 0;
     }
 }
@@ -147,16 +155,16 @@ void drawText(const std::string& value, int x, int y, int scale, SDL_Color color
     int cursor = x;
     for (char raw : value) {
         char c = raw >= 'a' && raw <= 'z' ? (char)(raw - 32) : raw;
-        if (c == ' ') { cursor += 4 * scale; continue; }
-        uint16_t bits = glyph(c);
-        for (int row=0; row<5; row++) for (int col=0; col<3; col++) {
-            int bit = 14 - (row*3 + col);
+        if (c == ' ') { cursor += 3 * scale; continue; }
+        uint32_t bits = glyph(c);
+        for (int row=0; row<6; row++) for (int col=0; col<4; col++) {
+            int bit = 23 - (row*4 + col);
             if (bits & (1u << bit)) {
                 SDL_Rect px = {cursor + col*scale, y + row*scale, scale, scale};
                 SDL_RenderFillRect(renderer, &px);
             }
         }
-        cursor += 4 * scale;
+        cursor += 5 * scale;
     }
 }
 void spriteRect(int x, int y, int w, int h, int scale, SDL_Color color) {
