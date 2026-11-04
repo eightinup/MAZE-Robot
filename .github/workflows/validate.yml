@@ -24,8 +24,9 @@ jobs:
           mkdir -p public
           emcc -v
           emcc main.cpp -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 --shell-file shell.html -o public/index.html
+          cp manifest.webmanifest sw.js icon.svg public/
       - name: Verify output
-        run: test -s public/index.html && test -s public/index.wasm
+        run: test -s public/index.html && test -s public/index.wasm && test -s public/manifest.webmanifest && test -s public/sw.js && test -s public/icon.svg
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:

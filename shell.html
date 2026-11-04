@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#17152b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <meta name="description" content="MAZE Robot — коллекция пиксельных приключений: лабиринт, танковая арена и шахта.">
   <title>MAZE Robot — Pixel Arcade</title>
   <style>
@@ -29,6 +35,11 @@
       print: function(text) { console.log(text); },
       printErr: function(text) { console.error(text); }
     };
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() { navigator.serviceWorker.register("./sw.js").catch(function(error) { console.warn("Offline mode unavailable:", error); }); });
+    }
   </script>
   {{{ SCRIPT }}}
 </body>
