@@ -25,6 +25,13 @@ EM_JS(void, storeRecords, (int maze, int tanks, int miner), {
         localStorage.setItem('mazeRobot.minerWins', String(miner));
     } catch (e) { /* Игра продолжает работать, даже если хранилище недоступно. */ }
 });
+EM_JS(int, loadAchievements, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.achievements') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(void, storeAchievements, (int value), {
+    try { localStorage.setItem('mazeRobot.achievements', String(value)); } catch (e) {}
+});
 
 const int W = 400;
 const int H = 500;
@@ -46,7 +53,7 @@ const int mazeMaps[3][5][5] = {
 int mazeLevel = 0, mx = 0, my = 0, mazeSteps = 0;
 bool mazeWon = false, mazeAllWon = false;
 int bestMazeSteps = 0, tankWins = 0, minerWins = 0;
-bool tankVictorySaved = false;
+bool tankVictorySaved = false;\nint achievementMask = 0;\nbool achievementsOpen = false;\nvoid unlockAchievement(int bit) {\n    int flag = 1 << bit;\n    if ((achievementMask & flag) == 0) { achievementMask |= flag; storeAchievements(achievementMask); }\n}
 bool mazeCanMove(int x, int y) {
     return x >= 0 && x < 5 && y >= 0 && y < 5 && mazeMaps[mazeLevel][y][x] == 0;
 }
@@ -62,7 +69,7 @@ void tryMazeMove(int dx, int dy) {
                 bestMazeSteps = mazeSteps;
                 storeRecords(bestMazeSteps, tankWins, minerWins);
             }
-            if (mazeLevel==2) mazeAllWon=true;
+            if (mazeLevel==2) { mazeAllWon=true; unlockAchievement(1); }
         }
     }
 }
@@ -348,6 +355,31 @@ void mainLoop() {
         drawText("MAZE ROBOT",112,29,5,{80,220,255,255});
         drawText("PIXEL ARCADE",140,58,2,{210,225,255,255});
         drawText("CHOOSE YOUR GAME",111,98,2,{175,190,230,255});
+        if (achievementsOpen) {
+            SDL_SetRenderDrawColor(renderer,22,29,65,255);
+            SDL_Rect panel={25,112,350,330}; SDL_RenderFillRect(renderer,&panel);
+            SDL_SetRenderDrawColor(renderer,80,210,255,255); SDL_RenderDrawRect(renderer,&panel);
+            drawText("ACHIEVEMENTS",83,132,4,{100,225,255,255});
+            const char* names[5]={"MAZE CLEAR","ALL MAZES","TANK ACE","DIAMOND","ARCADE PRO"};
+            const char* hints[5]={"FIND AN EXIT","CLEAR 3 LEVELS","WIN TANKS","FIND THE GEM","10 TOTAL WINS"};
+            SDL_Color gold={255,210,90,255}, muted={115,130,165,255};
+            for(int i=0;i<5;i++) {
+                bool earned=(achievementMask & (1<<i))!=0;
+                SDL_SetRenderDrawColor(renderer,earned?45:38,earned?75:43,earned?65:70,255);
+                SDL_Rect row={42,174+i*48,316,40}; SDL_RenderFillRect(renderer,&row);
+                drawText(earned?"+":"-",53,183,3,earned?gold:muted);
+                drawText(names[i],83,180,2,earned?gold:muted);
+                drawText(hints[i],83,195,1,earned?SDL_Color{180,235,190,255}:muted);
+            }
+            bool close=mouseX>=130&&mouseX<=270&&mouseY>=390&&mouseY<=430;
+            drawBtn(130,390,140,38,close,clicked&&close,{55,105,165,255});
+            drawText("BACK",176,403,3,{255,255,255,255});
+            if(clicked&&close) achievementsOpen=false;
+        } else {
+            bool awards=mouseX>=315&&mouseX<=390&&mouseY>=455&&mouseY<=495;
+            drawBtn(315,455,75,35,awards,clicked&&awards,{70,85,145,255});
+            drawText("AWARD",322,466,2,{255,255,255,255});
+            if(clicked&&awards) achievementsOpen=true;
 
         bool h1=mouseX>=18 && mouseX<=382 && mouseY>=116 && mouseY<=220;
         bool h2=mouseX>=18 && mouseX<=382 && mouseY>=230 && mouseY<=334;
@@ -390,6 +422,7 @@ void mainLoop() {
             if(h1) { current=MAZE; mazeLevel=0; resetMazeLevel(); }
             if(h2) { current=TANKS; resetTanks(); }
             if(h3) { current=MINER; resetMiner(); }
+        }
         }
     } else {
         // Общая панель навигации
