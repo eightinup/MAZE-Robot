@@ -53,7 +53,13 @@ const int mazeMaps[3][5][5] = {
 int mazeLevel = 0, mx = 0, my = 0, mazeSteps = 0;
 bool mazeWon = false, mazeAllWon = false;
 int bestMazeSteps = 0, tankWins = 0, minerWins = 0;
-bool tankVictorySaved = false;\nint achievementMask = 0;\nbool achievementsOpen = false;\nvoid unlockAchievement(int bit) {\n    int flag = 1 << bit;\n    if ((achievementMask & flag) == 0) { achievementMask |= flag; storeAchievements(achievementMask); }\n}
+bool tankVictorySaved = false;
+int achievementMask = 0;
+bool achievementsOpen = false;
+void unlockAchievement(int bit) {
+    int flag = 1 << bit;
+    if ((achievementMask & flag) == 0) { achievementMask |= flag; storeAchievements(achievementMask); }
+}
 bool mazeCanMove(int x, int y) {
     return x >= 0 && x < 5 && y >= 0 && y < 5 && mazeMaps[mazeLevel][y][x] == 0;
 }
