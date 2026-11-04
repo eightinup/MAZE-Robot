@@ -2,7 +2,7 @@ name: Validate and publish preview
 
 on:
   push:
-    branches: [ feature/pixel-art-rebuild ]
+    branches: [ feature/pixel-art-rebuild, feature/modern-pixel-art-redesign ]
   pull_request:
     branches: [ main ]
 

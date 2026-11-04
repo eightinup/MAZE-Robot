@@ -5,6 +5,27 @@
 #include <string>
 #include <algorithm>
 
+// Рекорды хранятся локально в браузере и переживают перезагрузку страницы.
+EM_JS(int, loadBestMaze, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.bestMaze') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(int, loadTankWins, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.tankWins') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(int, loadMinerWins, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.minerWins') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(void, storeRecords, (int maze, int tanks, int miner), {
+    try {
+        localStorage.setItem('mazeRobot.bestMaze', String(maze));
+        localStorage.setItem('mazeRobot.tankWins', String(tanks));
+        localStorage.setItem('mazeRobot.minerWins', String(miner));
+    } catch (e) { /* Игра продолжает работать, даже если хранилище недоступно. */ }
+});
+
 const int W = 400;
 const int H = 500;
 
@@ -24,6 +45,8 @@ const int mazeMaps[3][5][5] = {
 };
 int mazeLevel = 0, mx = 0, my = 0, mazeSteps = 0;
 bool mazeWon = false, mazeAllWon = false;
+int bestMazeSteps = 0, tankWins = 0, minerWins = 0;
+bool tankVictorySaved = false;
 bool mazeCanMove(int x, int y) {
     return x >= 0 && x < 5 && y >= 0 && y < 5 && mazeMaps[mazeLevel][y][x] == 0;
 }
@@ -35,6 +58,10 @@ void tryMazeMove(int dx, int dy) {
         mx=nx; my=ny; mazeSteps++;
         if (mx==4 && my==4) {
             mazeWon=true;
+            if (bestMazeSteps == 0 || mazeSteps < bestMazeSteps) {
+                bestMazeSteps = mazeSteps;
+                storeRecords(bestMazeSteps, tankWins, minerWins);
+            }
             if (mazeLevel==2) mazeAllWon=true;
         }
     }
@@ -118,22 +145,54 @@ void drawText(const std::string& value, int x, int y, int scale, SDL_Color color
         cursor += 4 * scale;
     }
 }
-void drawPixelRobot(int x, int y) {
-    SDL_SetRenderDrawColor(renderer, 255, 174, 78, 255);
-    SDL_Rect body={x+8,y+8,32,28}; SDL_RenderFillRect(renderer,&body);
-    SDL_Rect earL={x+2,y+15,6,12}, earR={x+40,y+15,6,12};
-    SDL_RenderFillRect(renderer,&earL); SDL_RenderFillRect(renderer,&earR);
-    SDL_SetRenderDrawColor(renderer, 255, 236, 190, 255);
-    SDL_Rect eyeL={x+15,y+16,6,7}, eyeR={x+27,y+16,6,7};
-    SDL_RenderFillRect(renderer,&eyeL); SDL_RenderFillRect(renderer,&eyeR);
-    SDL_SetRenderDrawColor(renderer, 48, 42, 67, 255);
-    SDL_Rect pupilL={x+17,y+18,3,4}, pupilR={x+29,y+18,3,4};
-    SDL_RenderFillRect(renderer,&pupilL); SDL_RenderFillRect(renderer,&pupilR);
-    SDL_Rect mouth={x+19,y+29,10,3}; SDL_RenderFillRect(renderer,&mouth);
-    SDL_SetRenderDrawColor(renderer, 112, 91, 130, 255);
-    SDL_Rect antenna={x+22,y+1,4,7}; SDL_RenderFillRect(renderer,&antenna);
-    SDL_SetRenderDrawColor(renderer, 255, 220, 100, 255);
-    SDL_Rect tip={x+21,y-2,6,4}; SDL_RenderFillRect(renderer,&tip);
+void spriteRect(int x, int y, int w, int h, int scale, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer,color.r,color.g,color.b,color.a);
+    SDL_Rect r={x,y,w*scale,h*scale}; SDL_RenderFillRect(renderer,&r);
+}
+void drawPixelRobot(int x, int y, int scale=2) {
+    // Бело-серебряный робот с голубым визором и маленькой антенной.
+    spriteRect(x+4*scale,y+1*scale,2,2,scale,{55,190,255,255});
+    spriteRect(x+5*scale,y+3*scale,2,2,scale,{180,205,230,255});
+    spriteRect(x+2*scale,y+5*scale,10,8,scale,{225,237,248,255});
+    spriteRect(x+3*scale,y+6*scale,8,5,scale,{35,48,76,255});
+    spriteRect(x+4*scale,y+7*scale,2,2,scale,{40,225,255,255});
+    spriteRect(x+8*scale,y+7*scale,2,2,scale,{40,225,255,255});
+    spriteRect(x+5*scale,y+10*scale,4,1,scale,{95,190,220,255});
+    spriteRect(x+1*scale,y+7*scale,1,4,scale,{100,180,220,255});
+    spriteRect(x+12*scale,y+7*scale,1,4,scale,{100,180,220,255});
+    spriteRect(x+4*scale,y+13*scale,6,5,scale,{190,210,230,255});
+    spriteRect(x+5*scale,y+14*scale,4,2,scale,{45,205,235,255});
+    spriteRect(x+2*scale,y+14*scale,2,4,scale,{225,237,248,255});
+    spriteRect(x+10*scale,y+14*scale,2,4,scale,{225,237,248,255});
+    spriteRect(x+4*scale,y+18*scale,2,3,scale,{125,155,190,255});
+    spriteRect(x+8*scale,y+18*scale,2,3,scale,{125,155,190,255});
+}
+void drawPixelTank(int x, int y, int scale=2) {
+    // Зелёный танк: гусеницы, корпус и направленная вправо башня.
+    spriteRect(x+1*scale,y+5*scale,13,5,scale,{35,48,65,255});
+    spriteRect(x+2*scale,y+6*scale,11,3,scale,{105,125,145,255});
+    for(int i=0;i<5;i++) spriteRect(x+(2+i*2)*scale,y+7*scale,1,1,scale,{35,48,65,255});
+    spriteRect(x+2*scale,y+4*scale,11,4,scale,{65,165,65,255});
+    spriteRect(x+4*scale,y+2*scale,6,4,scale,{105,205,75,255});
+    spriteRect(x+7*scale,y+1*scale,7,1,scale,{105,205,75,255});
+    spriteRect(x+12*scale,y+0*scale,2,2,scale,{190,220,100,255});
+    spriteRect(x+5*scale,y+3*scale,2,1,scale,{35,95,55,255});
+}
+void drawPixelMiner(int x, int y, int scale=2) {
+    // Шахтёр в золотой каске с киркой.
+    spriteRect(x+4*scale,y+1*scale,7,2,scale,{255,190,35,255});
+    spriteRect(x+3*scale,y+3*scale,9,2,scale,{225,135,25,255});
+    spriteRect(x+5*scale,y+4*scale,5,4,scale,{245,185,135,255});
+    spriteRect(x+6*scale,y+5*scale,1,1,scale,{35,35,55,255});
+    spriteRect(x+9*scale,y+5*scale,1,1,scale,{35,35,55,255});
+    spriteRect(x+5*scale,y+8*scale,6,5,scale,{185,90,35,255});
+    spriteRect(x+3*scale,y+8*scale,2,4,scale,{245,185,135,255});
+    spriteRect(x+11*scale,y+8*scale,2,4,scale,{245,185,135,255});
+    spriteRect(x+5*scale,y+13*scale,2,3,scale,{65,75,100,255});
+    spriteRect(x+9*scale,y+13*scale,2,3,scale,{65,75,100,255});
+    spriteRect(x+13*scale,y+3*scale,1,10,scale,{145,95,55,255});
+    spriteRect(x+12*scale,y+2*scale,5,1,scale,{210,225,240,255});
+    spriteRect(x+15*scale,y+3*scale,2,2,scale,{210,225,240,255});
 }
 
 // --- ФУНКЦИИ ОТРИСОВКИ UI ---
@@ -205,7 +264,7 @@ void resetMiner() {
 
 void resetTanks() {
     px_t = 50; py_t = 50; pa_t = 0; php = 3;
-    tanksWave = 1; enemyMoveTick = 0;
+    tanksWave = 1; enemyMoveTick = 0; tankVictorySaved = false;
     setTankArena(0);
     ex_t = 350; ey_t = 50; ehp = 2;
     bx.clear(); by.clear(); bdx.clear(); bdy.clear(); bulletOwner.clear();
@@ -218,7 +277,11 @@ void handleMinerCommand(int cmd) {
     else if (cmd == 3 && py_m < 7) { grid[py_m+1][px_m] = 0; py_m++; }
     else if (cmd == 4 && px_m < 9 && py_m < 7 && grid[py_m+1][px_m+1] == 0) grid[py_m+1][px_m+1] = 1;
     while (py_m < 7 && grid[py_m+1][px_m] == 0) py_m++; // Гравитация
-    if (px_m == 8 && py_m == 4) minerWon = true;
+    if (px_m == 8 && py_m == 4 && !minerWon) {
+        minerWon = true;
+        minerWins++;
+        storeRecords(bestMazeSteps, tankWins, minerWins);
+    }
 }
 
 void mainLoop() {
@@ -268,36 +331,61 @@ void mainLoop() {
     }
 
     if (current == MENU) {
-        // Звёздный фон в ограниченной палитре
-        SDL_SetRenderDrawColor(renderer, 23, 21, 43, 255);
-        SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 66, 57, 91, 255);
-        for (int i=0; i<18; i++) {
-            int sx=(i*73+19)%390, sy=(i*47+13)%490;
-            SDL_Rect star={sx,sy,2+(i%2),2+(i%2)}; SDL_RenderFillRect(renderer,&star);
+        // Modern Pixel Art arcade menu: три игровые карточки.
+        SDL_SetRenderDrawColor(renderer,9,13,39,255); SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer,28,35,76,255);
+        for(int i=0;i<34;i++) {
+            int sx=(i*73+19)%396, sy=(i*47+13)%496;
+            SDL_Rect star={sx,sy,2+(i%3==0),2+(i%3==0)}; SDL_RenderFillRect(renderer,&star);
         }
-        SDL_SetRenderDrawColor(renderer, 48, 42, 72, 255);
-        SDL_Rect header={18,18,364,112}; SDL_RenderFillRect(renderer,&header);
-        SDL_SetRenderDrawColor(renderer, 116, 91, 145, 255); SDL_RenderDrawRect(renderer,&header);
-        drawPixelRobot(32,48);
-        drawText("MAZE ROBOT", 100, 48, 5, {255,236,190,255});
-        drawText("PIXEL ARCADE", 103, 82, 3, {126,224,190,255});
-        drawText("SELECT GAME", 132, 145, 3, {207,195,226,255});
+        SDL_SetRenderDrawColor(renderer,18,29,66,255);
+        SDL_Rect header={16,14,368,76}; SDL_RenderFillRect(renderer,&header);
+        SDL_SetRenderDrawColor(renderer,55,115,190,255); SDL_RenderDrawRect(renderer,&header);
+        drawText("MAZE ROBOT",112,29,5,{80,220,255,255});
+        drawText("PIXEL ARCADE",140,58,2,{210,225,255,255});
+        drawText("CHOOSE YOUR GAME",111,98,2,{175,190,230,255});
 
-        bool h1 = mouseX>=30 && mouseX<=370 && mouseY>=180 && mouseY<=260;
-        bool h2 = mouseX>=30 && mouseX<=370 && mouseY>=275 && mouseY<=355;
-        bool h3 = mouseX>=30 && mouseX<=370 && mouseY>=370 && mouseY<=450;
-        drawBtn(30,180,340,80,h1,clicked&&h1,{199,112,63,255});
-        drawBtn(30,275,340,80,h2,clicked&&h2,{166,72,79,255});
-        drawBtn(30,370,340,80,h3,clicked&&h3,{63,145,113,255});
-        drawText("01  MAZE", 105, 204, 5, {255,244,214,255});
-        drawText("02  TANKS", 105, 299, 5, {255,244,214,255});
-        drawText("03  MINER", 105, 394, 5, {255,244,214,255});
-        drawText("WASD / ARROWS  -  TOUCH", 92, 468, 2, {170,162,199,255});
-        if (clicked) {
-            if (h1) { current = MAZE; mazeLevel=0; resetMazeLevel(); }
-            if (h2) { current = TANKS; resetTanks(); }
-            if (h3) { current = MINER; resetMiner(); }
+        bool h1=mouseX>=18 && mouseX<=382 && mouseY>=116 && mouseY<=220;
+        bool h2=mouseX>=18 && mouseX<=382 && mouseY>=230 && mouseY<=334;
+        bool h3=mouseX>=18 && mouseX<=382 && mouseY>=344 && mouseY<=448;
+        SDL_Color blue={18,48,112,255}, greenCard={18,65,53,255}, orange={91,43,22,255};
+        SDL_Color blueEdge={35,170,255,255}, greenEdge={105,230,75,255}, orangeEdge={255,145,45,255};
+        SDL_Rect cards[3]={{18,116,364,104},{18,230,364,104},{18,344,364,104}};
+        SDL_Color fills[3]={blue,greenCard,orange};
+        SDL_Color edges[3]={blueEdge,greenEdge,orangeEdge};
+        for(int i=0;i<3;i++) {
+            SDL_SetRenderDrawColor(renderer,0,0,0,180);
+            SDL_Rect shadow={cards[i].x+4,cards[i].y+5,cards[i].w,cards[i].h}; SDL_RenderFillRect(renderer,&shadow);
+            SDL_SetRenderDrawColor(renderer,fills[i].r,fills[i].g,fills[i].b,255); SDL_RenderFillRect(renderer,&cards[i]);
+            SDL_SetRenderDrawColor(renderer,edges[i].r,edges[i].g,edges[i].b,255); SDL_RenderDrawRect(renderer,&cards[i]);
+            SDL_Rect art={cards[i].x+9,cards[i].y+9,104,86};
+            SDL_SetRenderDrawColor(renderer,edges[i].r,edges[i].g,edges[i].b,55); SDL_RenderFillRect(renderer,&art);
+        }
+        drawPixelRobot(49,132,3);
+        drawPixelTank(45,250,3);
+        drawPixelMiner(45,361,3);
+        drawText("MAZE",145,132,5,{220,245,255,255});
+        drawText("FIND THE EXIT",145,160,2,{65,225,255,255});
+        drawText("TANKS",145,246,5,{225,255,210,255});
+        drawText("BATTLE ENEMIES",145,274,2,{150,245,105,255});
+        drawText("MINER",145,360,5,{255,235,205,255});
+        drawText("DIG AND COLLECT",145,388,2,{255,190,90,255});
+        drawBtn(274,177,94,30,h1,clicked&&h1,{20,130,235,255});
+        drawBtn(274,291,94,30,h2,clicked&&h2,{65,175,45,255});
+        drawBtn(274,405,94,30,h3,clicked&&h3,{235,112,20,255});
+        drawText("PLAY",292,186,3,{255,255,255,255});
+        drawText("PLAY",292,300,3,{255,255,255,255});
+        drawText("PLAY",292,414,3,{255,255,255,255});
+        drawText("BEST MZ",54,466,2,{155,180,230,255});
+        drawText(bestMazeSteps ? std::to_string(bestMazeSteps) : "--",118,466,2,{80,220,255,255});
+        drawText("TANK",168,466,2,{155,180,230,255});
+        drawText(std::to_string(tankWins),204,466,2,{150,245,105,255});
+        drawText("MINER",238,466,2,{155,180,230,255});
+        drawText(std::to_string(minerWins),286,466,2,{255,190,90,255});
+        if(clicked) {
+            if(h1) { current=MAZE; mazeLevel=0; resetMazeLevel(); }
+            if(h2) { current=TANKS; resetTanks(); }
+            if(h3) { current=MINER; resetMiner(); }
         }
     } else {
         // Общая панель навигации
@@ -334,11 +422,7 @@ void mainLoop() {
             SDL_SetRenderDrawColor(renderer,63,145,113,255);
             SDL_Rect exitR={cx+4*cell+10,cy+4*cell+10,cell-20,cell-20}; SDL_RenderFillRect(renderer,&exitR);
             drawText("E",cx+4*cell+23,cy+4*cell+24,3,{255,244,214,255});
-            SDL_SetRenderDrawColor(renderer,255,154,60,255);
-            SDL_Rect robot={cx+mx*cell+9,cy+my*cell+9,cell-18,cell-18}; SDL_RenderFillRect(renderer,&robot);
-            SDL_SetRenderDrawColor(renderer,48,42,67,255);
-            SDL_Rect eye1={cx+mx*cell+17,cy+my*cell+18,5,5}, eye2={cx+mx*cell+32,cy+my*cell+18,5,5};
-            SDL_RenderFillRect(renderer,&eye1); SDL_RenderFillRect(renderer,&eye2);
+            drawPixelRobot(cx+mx*cell+10,cy+my*cell+5,2);
 
             // D-Pad
             bool hu = (mouseX>=175 && mouseX<=225 && mouseY>=390 && mouseY<=440);
@@ -439,8 +523,8 @@ void mainLoop() {
             SDL_SetRenderDrawColor(renderer, 200, 150, 100, 255);
             for(auto& w : walls) SDL_RenderFillRect(renderer, &w);
             
-            SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255); SDL_Rect p = {(int)px_t-10, (int)py_t-10, 20, 20}; SDL_RenderFillRect(renderer, &p);
-            if (ehp > 0) { SDL_SetRenderDrawColor(renderer, 220, 60, 60, 255); SDL_Rect en = {(int)ex_t-10, (int)ey_t-10, 20, 20}; SDL_RenderFillRect(renderer, &en); }
+            drawPixelTank((int)px_t-16,(int)py_t-16,2);
+            if (ehp > 0) drawPixelTank((int)ex_t-16,(int)ey_t-16,2);
             for(int i=0; i<(int)bx.size(); i++) {
                 if (bulletOwner[i] == 0) SDL_SetRenderDrawColor(renderer, 255, 220, 100, 255);
                 else SDL_SetRenderDrawColor(renderer, 255, 70, 70, 255);
@@ -469,6 +553,11 @@ void mainLoop() {
                 if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
+            if (ehp <= 0 && tanksWave >= 3 && !tankVictorySaved) {
+                tankWins++;
+                tankVictorySaved = true;
+                storeRecords(bestMazeSteps, tankWins, minerWins);
+            }
             if (php <= 0 || (ehp <= 0 && tanksWave >= 3)) {
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(renderer, 18,16,35,220);
@@ -490,7 +579,7 @@ void mainLoop() {
                 if (grid[i][j] == 1) { SDL_SetRenderDrawColor(renderer, 180, 130, 80, 255); SDL_Rect r = {j*cell, i*cell+40, cell, cell}; SDL_RenderFillRect(renderer, &r); }
             }
             SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255); SDL_Rect g = {8*cell+10, 4*cell+50, cell-20, cell-20}; SDL_RenderFillRect(renderer, &g); // Алмаз
-            SDL_SetRenderDrawColor(renderer, 255, 154, 60, 255); SDL_Rect p = {px_m*cell+5, py_m*cell+45, cell-10, cell-10}; SDL_RenderFillRect(renderer, &p); // Игрок
+            drawPixelMiner(px_m*cell+4,py_m*cell+43,2); // Пиксельный шахтёр
 
             // Чипы программы
             for(size_t i=0; i<program.size(); i++) {
@@ -549,6 +638,9 @@ int main() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(W, H, 0, &window, &renderer);
     SDL_SetWindowTitle(window, "MAZE Robot - Pixel Arcade");
+    bestMazeSteps = loadBestMaze();
+    tankWins = loadTankWins();
+    minerWins = loadMinerWins();
     resetMiner(); resetTanks();
     emscripten_set_main_loop(mainLoop, 0, 1);
     return 0;
