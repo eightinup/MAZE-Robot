@@ -65,6 +65,7 @@ void tryMazeMove(int dx, int dy) {
         mx=nx; my=ny; mazeSteps++;
         if (mx==4 && my==4) {
             mazeWon=true;
+            unlockAchievement(0);
             if (bestMazeSteps == 0 || mazeSteps < bestMazeSteps) {
                 bestMazeSteps = mazeSteps;
                 storeRecords(bestMazeSteps, tankWins, minerWins);
@@ -291,6 +292,8 @@ void handleMinerCommand(int cmd) {
     if (px_m == 8 && py_m == 4 && !minerWon) {
         minerWon = true;
         minerWins++;
+        unlockAchievement(3);
+        if (tankWins + minerWins >= 10) unlockAchievement(4);
         storeRecords(bestMazeSteps, tankWins, minerWins);
     }
 }
@@ -593,6 +596,8 @@ void mainLoop() {
             // Победа засчитывается только если игрок пережил финальный обмен выстрелами.
             if (php > 0 && ehp <= 0 && tanksWave >= 3 && !tankVictorySaved) {
                 tankWins++;
+                unlockAchievement(2);
+                if (tankWins + minerWins >= 10) unlockAchievement(4);
                 tankVictorySaved = true;
                 storeRecords(bestMazeSteps, tankWins, minerWins);
             }
@@ -677,6 +682,7 @@ int main() {
     SDL_CreateWindowAndRenderer(W, H, 0, &window, &renderer);
     SDL_SetWindowTitle(window, "MAZE Robot - Pixel Arcade");
     bestMazeSteps = loadBestMaze();
+    achievementMask = loadAchievements();
     tankWins = loadTankWins();
     minerWins = loadMinerWins();
     resetMiner(); resetTanks();
