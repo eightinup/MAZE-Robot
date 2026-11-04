@@ -276,7 +276,11 @@ void handleMinerCommand(int cmd) {
     else if (cmd == 2 && px_m < 9 && grid[py_m][px_m+1] == 0) px_m++;
     else if (cmd == 3 && py_m < 7) { grid[py_m+1][px_m] = 0; py_m++; }
     else if (cmd == 4 && px_m < 9 && py_m < 7 && grid[py_m+1][px_m+1] == 0) grid[py_m+1][px_m+1] = 1;
-    while (py_m < 7 && grid[py_m+1][px_m] == 0) py_m++; // Гравитация
+    // Вертикальное копание запускает падение; горизонтальное перемещение
+    // позволяет пройти по верхнему тоннелю, не проваливаясь в шахту раньше времени.
+    if (cmd == 3) {
+        while (py_m < 7 && grid[py_m+1][px_m] == 0) py_m++;
+    }
     if (px_m == 8 && py_m == 4 && !minerWon) {
         minerWon = true;
         minerWins++;
@@ -553,7 +557,8 @@ void mainLoop() {
                 if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
-            if (ehp <= 0 && tanksWave >= 3 && !tankVictorySaved) {
+            // Победа засчитывается только если игрок пережил финальный обмен выстрелами.
+            if (php > 0 && ehp <= 0 && tanksWave >= 3 && !tankVictorySaved) {
                 tankWins++;
                 tankVictorySaved = true;
                 storeRecords(bestMazeSteps, tankWins, minerWins);
