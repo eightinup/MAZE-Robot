@@ -5,6 +5,27 @@
 #include <string>
 #include <algorithm>
 
+// Рекорды хранятся локально в браузере и переживают перезагрузку страницы.
+EM_JS(int, loadBestMaze, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.bestMaze') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(int, loadTankWins, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.tankWins') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(int, loadMinerWins, (), {
+    try { var n = parseInt(localStorage.getItem('mazeRobot.minerWins') || '0', 10); return isNaN(n) ? 0 : n; }
+    catch (e) { return 0; }
+});
+EM_JS(void, storeRecords, (int maze, int tanks, int miner), {
+    try {
+        localStorage.setItem('mazeRobot.bestMaze', String(maze));
+        localStorage.setItem('mazeRobot.tankWins', String(tanks));
+        localStorage.setItem('mazeRobot.minerWins', String(miner));
+    } catch (e) { /* Игра продолжает работать, даже если хранилище недоступно. */ }
+});
+
 const int W = 400;
 const int H = 500;
 
@@ -24,6 +45,8 @@ const int mazeMaps[3][5][5] = {
 };
 int mazeLevel = 0, mx = 0, my = 0, mazeSteps = 0;
 bool mazeWon = false, mazeAllWon = false;
+int bestMazeSteps = 0, tankWins = 0, minerWins = 0;
+bool tankVictorySaved = false;
 bool mazeCanMove(int x, int y) {
     return x >= 0 && x < 5 && y >= 0 && y < 5 && mazeMaps[mazeLevel][y][x] == 0;
 }
@@ -35,6 +58,10 @@ void tryMazeMove(int dx, int dy) {
         mx=nx; my=ny; mazeSteps++;
         if (mx==4 && my==4) {
             mazeWon=true;
+            if (bestMazeSteps == 0 || mazeSteps < bestMazeSteps) {
+                bestMazeSteps = mazeSteps;
+                storeRecords(bestMazeSteps, tankWins, minerWins);
+            }
             if (mazeLevel==2) mazeAllWon=true;
         }
     }
@@ -237,7 +264,7 @@ void resetMiner() {
 
 void resetTanks() {
     px_t = 50; py_t = 50; pa_t = 0; php = 3;
-    tanksWave = 1; enemyMoveTick = 0;
+    tanksWave = 1; enemyMoveTick = 0; tankVictorySaved = false;
     setTankArena(0);
     ex_t = 350; ey_t = 50; ehp = 2;
     bx.clear(); by.clear(); bdx.clear(); bdy.clear(); bulletOwner.clear();
@@ -250,7 +277,11 @@ void handleMinerCommand(int cmd) {
     else if (cmd == 3 && py_m < 7) { grid[py_m+1][px_m] = 0; py_m++; }
     else if (cmd == 4 && px_m < 9 && py_m < 7 && grid[py_m+1][px_m+1] == 0) grid[py_m+1][px_m+1] = 1;
     while (py_m < 7 && grid[py_m+1][px_m] == 0) py_m++; // Гравитация
-    if (px_m == 8 && py_m == 4) minerWon = true;
+    if (px_m == 8 && py_m == 4 && !minerWon) {
+        minerWon = true;
+        minerWins++;
+        storeRecords(bestMazeSteps, tankWins, minerWins);
+    }
 }
 
 void mainLoop() {
@@ -345,7 +376,12 @@ void mainLoop() {
         drawText("PLAY",292,186,3,{255,255,255,255});
         drawText("PLAY",292,300,3,{255,255,255,255});
         drawText("PLAY",292,414,3,{255,255,255,255});
-        drawText("PLAY  EXPLORE  WIN",117,470,2,{155,165,220,255});
+        drawText("BEST MZ",54,466,2,{155,180,230,255});
+        drawText(bestMazeSteps ? std::to_string(bestMazeSteps) : "--",118,466,2,{80,220,255,255});
+        drawText("TANK",168,466,2,{155,180,230,255});
+        drawText(std::to_string(tankWins),204,466,2,{150,245,105,255});
+        drawText("MINER",238,466,2,{155,180,230,255});
+        drawText(std::to_string(minerWins),286,466,2,{255,190,90,255});
         if(clicked) {
             if(h1) { current=MAZE; mazeLevel=0; resetMazeLevel(); }
             if(h2) { current=TANKS; resetTanks(); }
@@ -517,6 +553,11 @@ void mainLoop() {
                 if (hr && !tankBlocked(px_t+15,py_t)) { px_t += 15; pa_t = 0; }
                 if (hf && pcd <= 0) { bx.push_back(px_t); by.push_back(py_t); bdx.push_back(cos(pa_t)*6); bdy.push_back(sin(pa_t)*6); bulletOwner.push_back(0); pcd = 20; }
             }
+            if (ehp <= 0 && tanksWave >= 3 && !tankVictorySaved) {
+                tankWins++;
+                tankVictorySaved = true;
+                storeRecords(bestMazeSteps, tankWins, minerWins);
+            }
             if (php <= 0 || (ehp <= 0 && tanksWave >= 3)) {
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(renderer, 18,16,35,220);
@@ -597,6 +638,9 @@ int main() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(W, H, 0, &window, &renderer);
     SDL_SetWindowTitle(window, "MAZE Robot - Pixel Arcade");
+    bestMazeSteps = loadBestMaze();
+    tankWins = loadTankWins();
+    minerWins = loadMinerWins();
     resetMiner(); resetTanks();
     emscripten_set_main_loop(mainLoop, 0, 1);
     return 0;
